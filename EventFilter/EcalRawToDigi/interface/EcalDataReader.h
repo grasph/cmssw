@@ -179,8 +179,14 @@ private:
   bool produceSrfs_;
   bool produceTps_;
   bool produceDccHeaders_;
+  bool producePnDiodeDigis_;
+  bool producePseudoStripInputs_;
   //@}
 
+  /** Switch for production of in-error channel DetdId list
+   */
+  bool produceBadChannelList_;
+  
   int dccCh_;
   std::vector<uint32_t> lastOrbit_;
   static const unsigned nDccs_ = 54;

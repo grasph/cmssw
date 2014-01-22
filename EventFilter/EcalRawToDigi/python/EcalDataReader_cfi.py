@@ -48,7 +48,10 @@ ecalDataReader = cms.EDProducer("EcalDataReader",
                                 produceDigis = cms.bool(True),
                                 produceSrfs = cms.bool(True),
                                 produceTpgs = cms.bool(True),
-                                produceDccHeaders = cms.bool(True)
+                                produceDccHeaders = cms.bool(True),
+                                producePnDiodeDigis = cms.bool(False),
+                                producePseudoStripInputs = cms.bool(False),
+                                produceBadChannelList = cms.bool(True)
                                 )
 import copy
 #data dumper:

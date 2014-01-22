@@ -300,6 +300,9 @@ EcalDataReader::EcalDataReader(const edm::ParameterSet& ps):
   produceSrfs_(ps.getParameter<bool>("produceSrfs")),
   produceTps_(ps.getParameter<bool>("produceTpgs")),
   produceDccHeaders_(ps.getParameter<bool>("produceDccHeaders")),
+  producePnDiodeDigis_(ps.getParameter<bool>("producePnDiodeDigis")),
+  producePseudoStripInputs_(ps.getParameter<bool>("producePseudoStripInputs")),
+  produceBadChannelList_(ps.getParameter<bool>("produceBadChannelList")),
   lastOrbit_(nDccs_, std::numeric_limits<uint32_t>::max()),
   eventId_(std::numeric_limits<unsigned>::max()),
   minEventId_(999999),
@@ -360,8 +363,36 @@ EcalDataReader::EcalDataReader(const edm::ParameterSet& ps):
     produces<EcalRawDataCollection>(dccHeaderCollection_);
   }
 
-  produces<EBDetIdCollection>("EcalIntegrityGainErrors");
-  produces<EEDetIdCollection>("EcalIntegrityGainErrors");
+  if(producePnDiodeDigis_){
+    produces<EcalPnDiodeDigiCollection>();
+  }
+
+  if(producePseudoStripInputs_){
+    produces<EcalPSInputDigiCollection>("EcalPseudoStripInputs");
+  }
+
+  if(produceBadChannelList_){
+    // Integrity for xtal data
+    produces<EBDetIdCollection>("EcalIntegrityGainErrors");
+    produces<EBDetIdCollection>("EcalIntegrityGainSwitchErrors");
+    produces<EBDetIdCollection>("EcalIntegrityChIdErrors");
+
+    // Integrity for xtal data - EE specific (to be rivisited towards EB+EE common collection)
+    produces<EEDetIdCollection>("EcalIntegrityGainErrors");
+    produces<EEDetIdCollection>("EcalIntegrityGainSwitchErrors");
+    produces<EEDetIdCollection>("EcalIntegrityChIdErrors");
+
+    // Integrity Errors
+    produces<EcalElectronicsIdCollection>("EcalIntegrityTTIdErrors");
+    produces<EcalElectronicsIdCollection>("EcalIntegrityZSXtalIdErrors");
+    produces<EcalElectronicsIdCollection>("EcalIntegrityBlockSizeErrors");
+
+    // Mem channels' integrity
+    produces<EcalElectronicsIdCollection>("EcalIntegrityMemTtIdErrors");
+    produces<EcalElectronicsIdCollection>("EcalIntegrityMemBlockSizeErrors");
+    produces<EcalElectronicsIdCollection>("EcalIntegrityMemChIdErrors");
+    produces<EcalElectronicsIdCollection>("EcalIntegrityMemGainErrors");
+  }
 
 #endif //TIMING_TEST
 }
@@ -1431,8 +1462,41 @@ void EcalDataReader::putCollections(edm::Event& event){
   if(produceDccHeaders_){
     event.put(dccHeaderColl_, dccHeaderCollection_);
   }
-  event.put(auto_ptr<EBDetIdCollection>(new EBDetIdCollection), "EcalIntegrityGainErrors");
-  event.put(auto_ptr<EEDetIdCollection>(new EEDetIdCollection),"EcalIntegrityGainErrors");
+
+
+  if(producePnDiodeDigis_){
+    event.put(auto_ptr<EcalPnDiodeDigiCollection>(new EcalPnDiodeDigiCollection()), "");
+  }
+
+  if(producePseudoStripInputs_){
+    event.put(auto_ptr<EcalPSInputDigiCollection>(new EcalPSInputDigiCollection()), "EcalPseudoStripInputs");
+  }
+
+  if(produceBadChannelList_){
+    // Integrity for xtal data
+    event.put(auto_ptr<EBDetIdCollection>(new EBDetIdCollection()), "EcalIntegrityGainErrors");
+    event.put(auto_ptr<EBDetIdCollection>(new EBDetIdCollection()), "EcalIntegrityGainSwitchErrors");
+    event.put(auto_ptr<EBDetIdCollection>(new EBDetIdCollection()), "EcalIntegrityChIdErrors");
+
+    // Integrity for xtal data - EE specific (to be rivisited towards EB+EE common collection)
+    event.put(auto_ptr<EEDetIdCollection>(new EEDetIdCollection()), "EcalIntegrityGainErrors");
+    event.put(auto_ptr<EEDetIdCollection>(new EEDetIdCollection()), "EcalIntegrityGainSwitchErrors");
+    event.put(auto_ptr<EEDetIdCollection>(new EEDetIdCollection()), "EcalIntegrityChIdErrors");
+
+    // Integrity Errors
+    event.put(auto_ptr<EcalElectronicsIdCollection>(new EcalElectronicsIdCollection()), "EcalIntegrityTTIdErrors");
+    event.put(auto_ptr<EcalElectronicsIdCollection>(new EcalElectronicsIdCollection()), "EcalIntegrityZSXtalIdErrors");
+    event.put(auto_ptr<EcalElectronicsIdCollection>(new EcalElectronicsIdCollection()), "EcalIntegrityBlockSizeErrors");
+
+    // Mem channels' integrity
+    event.put(auto_ptr<EcalElectronicsIdCollection>(new EcalElectronicsIdCollection()), "EcalIntegrityMemTtIdErrors");
+    event.put(auto_ptr<EcalElectronicsIdCollection>(new EcalElectronicsIdCollection()), "EcalIntegrityMemBlockSizeErrors");
+    event.put(auto_ptr<EcalElectronicsIdCollection>(new EcalElectronicsIdCollection()), "EcalIntegrityMemChIdErrors");
+    event.put(auto_ptr<EcalElectronicsIdCollection>(new EcalElectronicsIdCollection()), "EcalIntegrityMemGainErrors");
+
+  }
+
+
 
 #endif
 }
