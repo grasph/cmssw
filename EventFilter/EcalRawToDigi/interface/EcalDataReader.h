@@ -18,7 +18,6 @@
 
 #include "DataFormats/EcalDigi/interface/EcalDigiCollections.h"
 #include "DataFormats/EcalRawData/interface/EcalRawDataCollections.h"
-#include "EventFilter/EcalRawToDigi/interface/PGHisto.h"
 
 //forward declaration
 class EcalElectronicsMapping;
@@ -186,7 +185,7 @@ private:
   /** Switch for production of in-error channel DetdId list
    */
   bool produceBadChannelList_;
-  
+
   int dccCh_;
   std::vector<uint32_t> lastOrbit_;
   static const unsigned nDccs_ = 54;
@@ -242,7 +241,6 @@ private:
   int simpleTrigType_;
   int detailedTrigType_;
   int color_;
-  PGHisto histo_;
   //  std::vector<std::vector<uint32_t> > l1as_;
   //  std::vector<std::vector<uint32_t> > orbits_;
   std::vector<std::vector<int> > tpg_;

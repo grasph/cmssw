@@ -36,11 +36,20 @@
 #include "EventFilter/EcalRawToDigi/interface/EcalDCCHeaderRuntypeDecoder.h"
 
 //#define TIMING_TEST
+//#define TIME_HIST //to produce an histogram of event processing time.
+//                  BEWARE: it is not thread-safe and this part must evently
+//                  be dropped.
 #define FAST_SC_RETRIEVAL
 
 #ifdef FAST_SC_RETRIEVAL
 #  include "EventFilter/EcalRawToDigi/plugins/dccRu2scDetId.h"
 #endif
+
+#ifdef TIME_HIST
+#  include "EventFilter/EcalRawToDigi/interface/PGHisto.h"
+PGHisto histo("hist.root", "RECREATE"),
+#endif //TIME_HIST defined
+
 
 // FE BX counter starts at 0, while OD BX starts at 1.
 // For some reason, I do not understand myself,
@@ -232,8 +241,8 @@ static const char* const ttsNames[] = {
 //          gain setting:     sat  12       6    1  //index 0->saturation
 //          gain setting:  1(sat)     12      6        1
 //index 0->saturation
-double mgpaGainFactors[] = {10.63, 1., 10.63/5.43, 10.63};
-double fppaGainFactors[] = {0, 1., 16./1.,  0.};
+static const double mgpaGainFactors[] = {10.63, 1., 10.63/5.43, 10.63};
+static const double fppaGainFactors[] = {0, 1., 16./1.,  0.};
 
 void EcalDataReader::reset(){
   simpleTrigType_   = -1;
@@ -283,7 +292,6 @@ EcalDataReader::EcalDataReader(const edm::ParameterSet& ps):
   amplCut_(ps.getUntrackedParameter<double>("amplCut", 5.)),
   dump_(ps.getUntrackedParameter<bool>("dump", true)),
   dumpAdc_(ps.getUntrackedParameter<bool>("dumpAdc", true)),
-  //  doHisto_(ps.getUntrackedParameter<bool>("doHisto", true)),
   maxEvt_(ps.getUntrackedParameter<int>("maxEvt", 10000)),
   profileFedId_(ps.getUntrackedParameter<int>("profileFedId", 0)),
   profileRuId_(ps.getUntrackedParameter<int>("profileRuId", 1)),
@@ -311,9 +319,6 @@ EcalDataReader::EcalDataReader(const edm::ParameterSet& ps):
   orbit0Set_(false),
   l1amin_(std::numeric_limits<int>::max()),
   l1amax_(-std::numeric_limits<int>::min()),
-  histo_("hist.root", "RECREATE"),
-  //  l1as_(36+2, 0),
-  //  orbits_(36+2, 0),
   tpg_(maxTccsPerDcc_, std::vector<int>(maxTpsPerTcc_)),
   nTps_(maxTccsPerDcc_, 0),
   tccL1a_(maxTccsPerDcc_,-1),
@@ -440,16 +445,11 @@ EcalDataReader::produce(edm::Event& event, const edm::EventSetup& es){
 #if 1
 
   bool dccIdErr = false;
-  bool simpleTrigTypeErr = false;
   bool outOfSync = false;
   unsigned iFed = 0;
   unsigned refDccId = 0;
   int refSimpleTrigType = -1;
   int refBx = -1;
-  static bool recordNextPhys = false;
-  static int bxCalib = -1;
-  static int nCalib = 0;
-
   initCollections();
 
   for (int id = 0; id<=FEDNumbering::lastFEDId(); ++id){
@@ -499,9 +499,6 @@ EcalDataReader::produce(edm::Event& event, const edm::EventSetup& es){
       } else{
         if(dccId_!=refDccId){
           dccIdErr = true;
-        }
-        if(simpleTrigType_!=refSimpleTrigType){
-          simpleTrigTypeErr = true;
         }
         if(refBx!=bx_){
           outOfSync = true;
@@ -582,7 +579,6 @@ EcalDataReader::produce(edm::Event& event, const edm::EventSetup& es){
       if (beg_fed_id_ <= id && id <= end_fed_id_ && writeDcc_){
         dumpFile_.write( reinterpret_cast <const char *> (pData), nWord32*4);
       }
-      //      if(doHisto_) analyzeFed(id);
     } else{
       //      cout << "No data for FED " <<  id << ". Size = "
       //     << data.size() << " byte(s).\n";
@@ -607,10 +603,6 @@ EcalDataReader::produce(edm::Event& event, const edm::EventSetup& es){
     cerr << "DCC ID discrepancy in detailed trigger type "
          << " of " << toNth(iEvent_) << " event.\n";
   }
-  int bx = -1;
-  if(!outOfSync){
-    bx = bx_;
-  }
 
 #endif
 
@@ -618,9 +610,11 @@ EcalDataReader::produce(edm::Event& event, const edm::EventSetup& es){
   double dt  = (stop.tv_sec-start.tv_sec)*1.e3
     + (stop.tv_usec-start.tv_usec)*1.e-3;
   //  cerr << "dt = " << dt << "\n";
-  histo_.fillD("hCodeTime", "Code execution time;Duration (ms);Event count",
+#ifdef TIME_HIST
+  histo.fillD("hCodeTime", "Code execution time;Duration (ms);Event count",
                PGXAxis(100, 0, 15),
                dt);
+#endif //TIMEHIST
 }
 
 string EcalDataReader::toNth(int n){
@@ -674,12 +668,6 @@ bool EcalDataReader::decode(const uint32_t* data, int iWord64, ostream& out){
               << " FED ID: "      << fedId_
               << " FOV: "         << ((data[0] >>4 ) & 0xF)
               << " H: "           << ((data[0] >>3 ) & 0x1);
-    static TH2* h1 = 0;
-    histo_.fillI("tTypeS","Simple Trigger Type;event;Trigger type code",
-                 PGXAxis(maxEvt_, first_event_-.5, first_event_+maxEvt_-.5),
-                 PGYAxis(8,-.5,7.5),
-                 iEvent_,
-                 simpleTrigType_, 1., &h1);
   } else if((dataType>>2)==0){//DCC header
     /**********************************************************************
      * ECAL DCC header
@@ -1027,12 +1015,6 @@ bool EcalDataReader::decode(const uint32_t* data, int iWord64, ostream& out){
                      << (ampl>amplCut_?"*":" ")
                      << " BoM:" << setw(2) << (bom0+1)
                      << "          ";
-          if(fedId_ == dccId_ + 600 //block of the read-out SM
-             //if laser, only one side:
-             && (detailedTrigType_!=4 || sideOfRu(dccCh_)==(int)side_)
-             ){
-            //              if(doHisto_) analyzeApd();
-          }
         } else{
           if(da) out << setw(29) << "";
         }
@@ -1143,99 +1125,6 @@ int EcalDataReader::lmodOfRu(int ru1){
   }
   //  cout << "ru1 = " << ru1 << " -> lmod = " << rs << "\n";
   return rs;
-}
-
-void EcalDataReader::analyzeApd(){
-  if(detailedTrigType_-4>3) return;
-
-  stringstream name;
-  stringstream title;
-  unsigned i = (unsigned)(fedId_-beg_fed_id_);
-  if(pulsePerRu_){
-#if 1
-    static TProfile* h1[54][70][4];
-#else
-    static TH2* h1[54][70][4];
-#endif
-    VASSERT(i,<=,sizeof(h1)/sizeof(h1[0]));
-    VASSERT(dccCh_, <=, 70);
-    if(h1[i][dccCh_][detailedTrigType_-4]==0){
-      name << "hSignal" << "Fed" << fedId_
-           << "Ru" << dccCh_ << detailedTrigNames[detailedTrigType_];
-      title << "Profile of "
-            << detailedTrigNames[detailedTrigType_]
-            << " signal from crystals of RU "
-            << dccCh_ << " of FED " << fedId_
-            << ";Time sample;ADC count";
-    }
-    //simple pedestal and gain correction:
-    static std::vector<double> correctedAdc_(10);
-
-
-    for(int iT=0; iT<10; ++iT){
-#if 1
-      histo_.fillProfile(name.str().c_str(), title.str().c_str(),
-                         PGXAxis(10, .5, 10.5),
-                         "s",
-                         iT+1,
-                         adc_[iT], 1., &h1[i][dccCh_][detailedTrigType_-4]);
-#else
-      histo_.fillD(name.str().c_str(),
-                   title.str().c_str(),
-                   PGXAxis(10, .5, 10.5),
-                   PGYAxis(1000, 0, 2500),
-                   iT+1.,
-                   adc_[iT],
-                   1.,
-                   &h1[i][dccCh_][detailedTrigType_-4]);
-#endif
-    }
-  }
-  if(pulsePerLmod_){
-    static TProfile* h2[54][70][4];
-    unsigned module = (unsigned)lmodOfRu(dccCh_);
-    VASSERT(i,<=,sizeof(h2)/sizeof(h2[0]));
-    VASSERT(module,<=,sizeof(h2[0]));
-    if(h2[i][module][detailedTrigType_-4]==0){
-      name.str("");
-      title.str("");
-      name << "hSignal" << "Fed" << fedId_
-           << "LMod" << module << detailedTrigNames[detailedTrigType_];
-      title << "Profile of " << detailedTrigNames[detailedTrigType_]
-            << " signal for a light Module "
-            << module << ". FED " << fedId_ << "."
-            << ";Time sample;ADC count";
-    }
-    for(int iT=0; iT<10; ++iT){
-      histo_.fillProfile(name.str().c_str(), title.str().c_str(),
-                         PGXAxis(10, .5, 10.5),
-                         "s",
-                         iT+1,
-                         adc_[iT], 1., &h2[i][module][detailedTrigType_-4]);
-    }
-  }
-  if(pulsePerLme_){
-    static TProfile* h3[92][4];
-    unsigned l = (unsigned)lme(dccId_, side_);
-    VASSERT(l,<=,sizeof(h3));
-    if(h3[l][detailedTrigType_-4]==0){
-      name.str("");
-      title.str("");
-      name << "hSignal" << "LME" << l << detailedTrigNames[detailedTrigType_];
-      title << "Profile of " << detailedTrigNames[detailedTrigType_]
-            << " signal in LME " << l
-            << ";Time sample;ADC count";
-    }
-
-    for(int iT=0; iT<10; ++iT){
-      histo_.fillProfile(name.str().c_str(),
-                         title.str().c_str(),
-                         PGXAxis(10, .5, 10.5),
-                         "s",
-                         iT+1,
-                         adc_[iT], 1., &h3[l][detailedTrigType_-4]);
-    }
-  }
 }
 
 std::string EcalDataReader::srRange(int offset) const{
@@ -1377,8 +1266,8 @@ void EcalDataReader::newSrf(int iSeq, int val){
         ebSrfColl_->push_back(EBSrFlag(ttId, val));
 #endif
       } catch(cms::Exception){
-        PRINTVALN(fedId_);
-        PRINTVALN(iSeq);
+        // PRINTVALN(fedId_);
+        // PRINTVALN(iSeq);
       }
     } else if((601 <= fedId_) && (fedId_ <= 654)){//endcap
       if(iSeq<0 || iSeq > 68) return;
