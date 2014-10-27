@@ -423,7 +423,10 @@ EcalDataReader::produce(edm::Event& event, const edm::EventSetup& es){
 
   ++iEvent_;
   eventId_ = event.id().event();
-  if (iEvent_ < first_event_ || last_event_ < iEvent_) return;
+
+  if ((first_event_ > 0 && iEvent_ < first_event_)
+      || (last_event_ > 0 && last_event_ < iEvent_)) return;
+
   timeval start;
   timeval stop;
   gettimeofday(&start, 0);
@@ -1335,20 +1338,26 @@ void EcalDataReader::initCollections(){
 void EcalDataReader::putCollections(edm::Event& event){
 #ifndef TIMING_TEST
   if(produceDigis_){
+    ebDigiColl_->sort();
     event.put(ebDigiColl_, ebDigiCollection_);
+    eeDigiColl_->sort();
     event.put(eeDigiColl_, eeDigiCollection_);
   }
 
   if(produceSrfs_){
+    ebSrfColl_->sort();
     event.put(ebSrfColl_, ebSrFlagCollection_);
+    eeSrfColl_->sort();
     event.put(eeSrfColl_, eeSrFlagCollection_);
   }
 
   if(produceTps_){
+    tpgColl_->sort();
     event.put(tpgColl_, tpgCollection_);
   }
 
   if(produceDccHeaders_){
+    dccHeaderColl_->sort();
     event.put(dccHeaderColl_, dccHeaderCollection_);
   }
 
