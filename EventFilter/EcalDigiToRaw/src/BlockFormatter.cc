@@ -156,7 +156,7 @@ void BlockFormatter::DigiToRaw(FEDRawDataCollection* productRawData){
 
       std::vector<short> feStatus = dccHeader.getFEStatus();
       const int nFeCh = 70;
-      feStatus.resize(nFeCh);
+      feStatus.resize(nFeCh, 0);
       int iCh = 0;
       for (int i = 0; i <= 4; i++) {
         for (int j = 0; j < 7; j++) {
@@ -198,7 +198,7 @@ void BlockFormatter::CleanUp(FEDRawDataCollection* productRawData,
 
     int FEDid = FEDNumbering::MINECALFEDID + id +1;
     FEDRawData& rawdata = productRawData -> FEDData(FEDid);
-
+    EcalDCCHeaderBlock dccHeader = base_->GetDCCHeader(id + 1);
 
     // ---- if raw need not be made for a given fed, set its size to empty and return
     if ( find( (*plistDCCId_).begin(), (*plistDCCId_).end(), (id+1) ) == (*plistDCCId_).end() )
@@ -236,34 +236,38 @@ void BlockFormatter::CleanUp(FEDRawDataCollection* productRawData,
     if (fen == FEDorder->end()) FED_has_data = false;
     if (debug_ && (! FED_has_data)) cout << " FEDid is not in FEDorder ! " << endl;
 
-#if 0 //this is mixing up the DCC header for real data. channel status must be
-      //read from EcalDCCHeaderBlock.
-    if ( ! FED_has_data) {
-      int ch_status = 7;
-      for (int iFE=1; iFE <= 68; iFE++) {
-        int irow = (iFE-1) / 14;
-        int kval = ( (iFE-1) % 14) / 2;
-        if (iFE % 2 ==1) pData[32 + 8*irow + kval] |= ch_status & 0xFF;
-        else pData[32 + 8*irow + kval] |= ((ch_status <<4) & 0xFF);
+//    if(dccHeader.getFEStatus().size() != 0) std::cerr << "Using FE status from DCC header! "
+//                                                      << dccHeader.getFEStatus().size() << endl;
+
+    if(dccHeader.getFEStatus().size() == 0){
+      //EcalDCCHeaderBlock is missing the FE channel statuses (MC).
+      //Need to produce the channel statuses.
+      if ( ! FED_has_data) {
+        int ch_status = 7;
+        for (int iFE=1; iFE <= 68; iFE++) {
+          int irow = (iFE-1) / 14;
+          int kval = ( (iFE-1) % 14) / 2;
+          if (iFE % 2 ==1) pData[32 + 8*irow + kval] |= ch_status & 0xFF;
+          else pData[32 + 8*irow + kval] |= ((ch_status <<4) & 0xFF);
+        }
       }
-    }
+      
+      if (FED_has_data) {
+        map<int, int>& FEorder = (*fen).second;
 
-    if (FED_has_data) {
-      map<int, int>& FEorder = (*fen).second;
+        for (int iFE=1; iFE <= 68; iFE++) {
+          map<int,int>::iterator fe = FEorder.find(iFE);
+          int ch_status = 0;
+          if (fe == FEorder.end())	// FE not present due to SRP, update CH_status
+            ch_status = 7;		// CH_SUPPRESS
+          int irow = (iFE-1) / 14;
+          int kval = ( (iFE-1) % 14) / 2;
+          if (iFE % 2 ==1) pData[32 + 8*irow + kval] |= ch_status & 0xFF;
+          else pData[32 + 8*irow + kval] |= ((ch_status <<4) & 0xFF);
 
-      for (int iFE=1; iFE <= 68; iFE++) {
-        map<int,int>::iterator fe = FEorder.find(iFE);
-        int ch_status = 0;
-        if (fe == FEorder.end())	// FE not present due to SRP, update CH_status
-          ch_status = 7;		// CH_SUPPRESS
-        int irow = (iFE-1) / 14;
-        int kval = ( (iFE-1) % 14) / 2;
-        if (iFE % 2 ==1) pData[32 + 8*irow + kval] |= ch_status & 0xFF;
-        else pData[32 + 8*irow + kval] |= ((ch_status <<4) & 0xFF);
-
+        }
       }
-    }
-#endif
+    } //dccHeader.getFEStatus().size() == 0
   }
 }
 
