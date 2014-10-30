@@ -4,28 +4,33 @@
 // Class:      EcalDigiToRaw
 // 
 /**\class EcalDigiToRaw EcalDigiToRaw.cc EventFilter/EcalDigiToRaw/src/EcalDigiToRaw.cc
+
+ Description: <one line class summary>
+
+ Implementation:
+     <Notes on implementation>
 */
 //
 // Original Author:  Emmanuelle Perez
 //         Created:  Sat Nov 25 13:59:51 CET 2006
 //
-// Modified by Ph. Gras, 2013-2014
+//
 
 
 // system include files
 
+
 // user include files
 #include "EventFilter/EcalDigiToRaw/interface/EcalDigiToRaw.h"
 
-#include "DataFormats/EcalDigi/interface/EcalDigiCollections.h"
 #include "DataFormats/EcalDetId/interface/EcalDetIdCollections.h"
-#include "DataFormats/EcalDigi/interface/EcalSrFlag.h"
 
 #include "DataFormats/FEDRawData/interface/FEDRawDataCollection.h"
 #include "DataFormats/FEDRawData/interface/FEDRawData.h"
 #include "DataFormats/FEDRawData/interface/FEDNumbering.h"
 
 
+// #include "DataFormats/Common/interface/Handle.h"
 #include "DataFormats/Common/interface/Handle.h"
 #include "FWCore/Framework/interface/EventSetup.h"
 #include "FWCore/Framework/interface/ESHandle.h"
@@ -33,11 +38,13 @@
 #include "Geometry/EcalMapping/interface/EcalElectronicsMapping.h"
 #include "Geometry/EcalMapping/interface/EcalMappingRcd.h"
 
+
+
+
 using namespace edm;
 using namespace std;
 
-EcalDigiToRaw::EcalDigiToRaw(const edm::ParameterSet& iConfig):
-  pDccHeaders_(0)
+EcalDigiToRaw::EcalDigiToRaw(const edm::ParameterSet& iConfig)
 {
 
    doTCC_    = iConfig.getUntrackedParameter<bool>("WriteTCCBlock");
@@ -63,8 +70,6 @@ EcalDigiToRaw::EcalDigiToRaw(const edm::ParameterSet& iConfig):
    labelEBSR_ = consumes<EBSrFlagCollection>(iConfig.getParameter<edm::InputTag>("labelEBSRFlags"));
    labelEESR_ = consumes<EESrFlagCollection>(iConfig.getParameter<edm::InputTag>("labelEESRFlags"));
 
-   labelDCCHeader_ = consumes<EcalRawDataCollection>(iConfig.getParameter<edm::InputTag>("labelDCCHeader"));
-
    counter_ = 0;
    debug_ = iConfig.getUntrackedParameter<bool>("debug");
 
@@ -75,6 +80,7 @@ EcalDigiToRaw::EcalDigiToRaw(const edm::ParameterSet& iConfig):
    Headerblockformatter_= new BlockFormatter;
 
    produces<FEDRawDataCollection>();
+
 
 }
 
@@ -101,6 +107,7 @@ EcalDigiToRaw::~EcalDigiToRaw()
 void
 EcalDigiToRaw::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
+
    if (debug_) cout << "Enter in EcalDigiToRaw::produce ... " << endl;
 
    ESHandle< EcalElectronicsMapping > ecalmapping;
@@ -116,31 +123,17 @@ EcalDigiToRaw::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   // orbit_number_ = counter_ / BXMAX;
   // counter_ ++;
 
-  const int l1a_offset = -10511926;
-  const int orbit_offset = 145;
-  counter_ = iEvent.id().event() + l1a_offset;
+  counter_ = iEvent.id().event();
   bx_ = iEvent.bunchCrossing();
-  orbit_number_ = iEvent.orbitNumber() + orbit_offset;
+  orbit_number_ = iEvent.orbitNumber();
 
   lv1_ = counter_ % (0x1<<24);
 
-  edm::Handle<EcalRawDataCollection> hDccHeaders;
-  if(iEvent.getByToken(labelDCCHeader_, hDccHeaders)){
-    pDccHeaders_ = hDccHeaders.product();
-  } else{
-    if(debug_){
-      std::cerr << __FILE__ << ":" << __LINE__
-		<< ": " << "DCC header collections"
-	//<< " with label " << labelDCCHeader_ 
-		<< " was not found!"
-                << std::endl;
-    }
-    pDccHeaders_ = 0;
-  }
-
   auto_ptr<FEDRawDataCollection> productRawData(new FEDRawDataCollection);
 
+
   Headerblockformatter_ -> DigiToRaw(productRawData.get());
+
 
 // ---------   Now the Trigger Block part
 
@@ -310,3 +303,10 @@ EcalDigiToRaw::beginJob()
 void 
 EcalDigiToRaw::endJob() {
 }
+
+
+
+
+
+
+

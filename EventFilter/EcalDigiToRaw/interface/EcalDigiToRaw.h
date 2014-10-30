@@ -15,7 +15,6 @@
 //
 // Original Author:  Emmanuelle Perez
 //         Created:  Sat Nov 25 13:59:51 CET 2006
-// Modified by: Ph. Gras CEA/Saclay 2013-2014
 //
 //
 
@@ -40,7 +39,6 @@
 #include "EventFilter/EcalDigiToRaw/interface/BlockFormatter.h"
 #include "EventFilter/EcalDigiToRaw/interface/SRBlockFormatter.h"
 
-#include "DataFormats/EcalRawData/interface/EcalDCCHeaderBlock.h"
 #include "DataFormats/EcalDigi/interface/EcalDigiCollections.h"
 #include "DataFormats/EcalDigi/interface/EcalSrFlag.h"
 
@@ -72,13 +70,6 @@ class EcalDigiToRaw : public edm::EDProducer {
 	bool GetDoSR() {return doSR_ ;}
 	bool GetDoTower() {return doTower_ ;}
 	bool GetDoTCC() {return doTCC_ ;}
-  EcalDCCHeaderBlock GetDCCHeader(int idcc) const {
-    if(pDccHeaders_){
-      EcalRawDataCollection::const_iterator it = pDccHeaders_->find(idcc);
-      if(it != pDccHeaders_->end()) return *it;
-    }
-    return EcalDCCHeaderBlock();
-  }
 
         std::vector<int32_t>* GetListDCCId() {return &listDCCId_ ;}
     
@@ -106,7 +97,6 @@ class EcalDigiToRaw : public edm::EDProducer {
 	edm::EDGetTokenT<EESrFlagCollection> labelEESR_ ;
 	edm::EDGetTokenT<EBDigiCollection> EBDigiToken_ ;
 	edm::EDGetTokenT<EEDigiCollection> EEDigiToken_;
-	edm::EDGetTokenT<EcalRawDataCollection> labelDCCHeader_;
 
 	bool doBarrel_;
 	bool doEndCap_;
@@ -122,8 +112,11 @@ class EcalDigiToRaw : public edm::EDProducer {
 	BlockFormatter*	     Headerblockformatter_;
 	SRBlockFormatter*    SRblockformatter_;
 
-	const EcalRawDataCollection* pDccHeaders_;
 
 };
 
+//define this as a plug-in
+// DEFINE_FWK_MODULE(EcalDigiToRaw);
+
 #endif
+
