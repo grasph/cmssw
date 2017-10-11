@@ -1,3 +1,4 @@
+// -*- mode: c++; c-basic-offset: 8; tab-width: 8; indent-tabs-mode: t; -*-
 #include <functional>
 #include <algorithm>
 #include <iostream>
@@ -325,13 +326,21 @@ void JetMatchingMadgraph::beforeHadronisation(const lhef::LHEEvent* event)
 				<< std::endl;
 
 			const lhef::HEPEUP *hepeup = event->getHEPEUP();
-			for(int i = 2; i < hepeup->NUP; i++) 
+			int i_firstoutgoing = 0;
+			const int outgoing_status_id = 1;
+			size_t ipypart = 0;
+			for(int i = 0; i < hepeup->NUP; ++i) 
 			{
-				double mt2 =
-					hepeup->PUP[i][0] * hepeup->PUP[i][0] +
-					hepeup->PUP[i][1] * hepeup->PUP[i][1] +
-					hepeup->PUP[i][4] * hepeup->PUP[i][4];
-				pypart_.ptpart[i - 2] = std::sqrt(mt2);
+				//pyparts include only outgoing final state particles:
+				if(hepeup->ISTUP[i_firstoutgoing] == outgoing_status_id)
+				{
+					double mt2 =
+						hepeup->PUP[i][0] * hepeup->PUP[i][0] +
+						hepeup->PUP[i][1] * hepeup->PUP[i][1] +
+						hepeup->PUP[i][4] * hepeup->PUP[i][4];
+					pypart_.ptpart[ipypart++] = std::sqrt(mt2);
+					if(ipypart >= sizeof(pypart_.ptpart) / sizeof(pypart_.ptpart[0])) break;
+				}
 			}
 		}
 	}
