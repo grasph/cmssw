@@ -1,3 +1,4 @@
+// -*- mode: c++; c-basic-offset: 8; tab-width: 8; indent-tabs-mode: t; -*-
 #include <functional>
 #include <algorithm>
 #include <iostream>
@@ -303,36 +304,27 @@ void JetMatchingMadgraph::beforeHadronisation(const lhef::LHEEvent* event)
 
 	if (uppriv_.ickkw) 
 	{
-		std::vector<std::string> comments = event->getComments();
-		if (comments.size() == 1) 
-		{
-			std::istringstream ss(comments[0].substr(1));
-			for(int i = 0; i < 1000; i++) 
+		std::vector<float> s = event->scales();
+		if(s.size() > 0){
+			std::copy_n(s.begin(), std::min(sizeof(pypart_.ptpart)/sizeof(pypart_.ptpart[0]), s.size()), pypart_.ptpart);
+		} else{ //LHEReader did not read the scale information Try with old format
+			std::vector<std::string> comments = event->getComments();
+			if (comments.size() == 1)
 			{
-				double pt;
-				ss >> pt;
-				if (!ss.good())
-					break;
-				pypart_.ptpart[i] = pt;
+				std::istringstream ss(comments[0].substr(1));
+				for(int i = 0; i < 1000; i++) 
+			        {
+					double pt;
+					ss >> pt;
+					if (!ss.good())
+						break;
+					pypart_.ptpart[i] = pt;
+				}
 			}
-		} 
-		else 
-		{
-			edm::LogWarning("Generator|LHEInterface")
-				<< "Expected exactly one comment line per "
-				   "event containing MadGraph parton scale "
-				   "information."
-				<< std::endl;
-
-			const lhef::HEPEUP *hepeup = event->getHEPEUP();
-			for(int i = 2; i < hepeup->NUP; i++) 
+	       		else 
 			{
-				double mt2 =
-					hepeup->PUP[i][0] * hepeup->PUP[i][0] +
-					hepeup->PUP[i][1] * hepeup->PUP[i][1] +
-					hepeup->PUP[i][4] * hepeup->PUP[i][4];
-				pypart_.ptpart[i - 2] = std::sqrt(mt2);
-			}
+				edm::LogError("Scale information of the LHE was not found.");
+		        }
 		}
 	}
 
@@ -383,5 +375,4 @@ int JetMatchingMadgraph::match( const lhef::LHEEvent* partonLevel, const std::ve
 
 	return veto;
 }
-
 } // end namespace gen
