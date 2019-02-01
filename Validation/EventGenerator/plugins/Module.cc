@@ -45,3 +45,6 @@ DEFINE_FWK_MODULE(BPhysicsValidation);
 
 #include "Validation/EventGenerator/interface/BPhysicsSpectrum.h"
 DEFINE_FWK_MODULE(BPhysicsSpectrum);
+
+#include "Validation/EventGenerator/interface/GJetValidation.h"
+DEFINE_FWK_MODULE(GJetValidation);
